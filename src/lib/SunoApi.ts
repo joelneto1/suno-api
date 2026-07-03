@@ -335,6 +335,18 @@ class SunoApi {
     await this.click(textarea);
     await textarea.pressSequentially('Lorem ipsum', { delay: 80 });
 
+    // Fill the Styles field too (required in the new UI), otherwise "Create song" stays disabled and no hCaptcha is triggered.
+    // The styles placeholder rotates, so target any textbox that is NOT the lyrics or title field.
+    try {
+      const boxes = await page.getByRole('textbox').all();
+      for (const b of boxes) {
+        const nm = ((await b.getAttribute('aria-label')) || (await b.getAttribute('placeholder')) || '').toLowerCase();
+        if (nm.includes('lyrics') || nm.includes('title')) continue;
+        await this.click(b);
+        await b.pressSequentially('children music, nursery rhyme', { delay: 50 });
+      }
+    } catch(e) {}
+
     const button = page.getByRole('button', { name: 'Create song' });
     this.click(button);
 
@@ -723,6 +735,7 @@ class SunoApi {
     }));
   }
 
+
   /**
    * Get the lyric alignment for a song.
    * @param song_id The ID of the song to get the lyric alignment for.
@@ -820,6 +833,7 @@ class SunoApi {
     );
     return response.data;
   }
+
   public async get_credits(): Promise<object> {
     await this.keepAlive(false);
     const response = await this.client.get(
