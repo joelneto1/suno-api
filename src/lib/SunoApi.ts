@@ -820,3 +820,54 @@ class SunoApi {
     );
     return response.data;
   }
+  public async get_credits(): Promise<object> {
+    await this.keepAlive(false);
+    const response = await this.client.get(
+      `${SunoApi.BASE_URL}/api/billing/info/`
+    );
+    return {
+      credits_left: response.data.total_credits_left,
+      period: response.data.period,
+      monthly_limit: response.data.monthly_limit,
+      monthly_usage: response.data.monthly_usage
+    };
+  }
+
+  public async getPersonaPaginated(personaId: string, page: number = 1): Promise<PersonaResponse> {
+    await this.keepAlive(false);
+    
+    const url = `${SunoApi.BASE_URL}/api/persona/get-persona-paginated/${personaId}/?page=${page}`;
+    
+    logger.info(`Fetching persona data: ${url}`);
+    
+    const response = await this.client.get(url, {
+      timeout: 10000 // 10 seconds timeout
+    });
+
+    if (response.status !== 200) {
+      throw new Error('Error response: ' + response.statusText);
+    }
+
+    return response.data;
+  }
+}
+
+export const sunoApi = async (cookie?: string) => {
+  const resolvedCookie = cookie && cookie.includes('__client') ? cookie : process.env.SUNO_COOKIE; // Check for bad `Cookie` header (It's too expensive to actually parse the cookies *here*)
+  if (!resolvedCookie) {
+    logger.info('No cookie provided! Aborting...\nPlease provide a cookie either in the .env file or in the Cookie header of your request.')
+    throw new Error('Please provide a cookie either in the .env file or in the Cookie header of your request.');
+  }
+
+  // Check if the instance for this cookie already exists in the cache
+  const cachedInstance = cache.get(resolvedCookie);
+  if (cachedInstance)
+    return cachedInstance;
+
+  // If not, create a new instance and initialize it
+  const instance = await new SunoApi(resolvedCookie).init();
+  // Cache the initialized instance
+  cache.set(resolvedCookie, instance);
+
+  return instance;
+};
